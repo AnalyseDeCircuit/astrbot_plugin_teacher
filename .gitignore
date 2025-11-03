@@ -1,0 +1,65 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 系统文件
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 测试输出
+output_*.png
+test_output/
+*.html
+
+# 日志
+*.log
+logs/
+
+# 临时文件
+*.tmp
+*.temp
+.cache/
+
+# Playwright
+.playwright/
+
+# 备份文件
+*.bak
+*.backup
+main.py.jsonbak
+main.py.mdbak
+
+# 用户自行下载的资源文件
+assets/
+
+# 依赖文件（用户根据 README 手动安装）
+requirements.txt

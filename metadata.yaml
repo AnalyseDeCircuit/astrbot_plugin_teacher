@@ -1,0 +1,6 @@
+name: astrbot_teacher
+display_name: 智能题目解析助手
+desc: 支持文字/图片输入，输出详细解题步骤并以美观图片返回（支持公式渲染，完全离线）。
+version: v0.2.5
+author: lipsc
+repo: https://github.com/lipsc/astrbot_teacher

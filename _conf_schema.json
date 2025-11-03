@@ -1,0 +1,62 @@
+{
+  "ocr_provider_id": {
+    "description": "OCR 使用的 Provider ID（可选）",
+    "type": "string",
+    "hint": "不填则使用当前会话正在使用的 Provider",
+    "default": ""
+  },
+  "ocr_model": {
+    "description": "OCR 模型名（可选），留空使用提供商默认模型",
+    "type": "string",
+    "hint": "用于图片识别的模型标识（可选）",
+    "default": ""
+  },
+  "solver_provider_id": {
+    "description": "解题使用的 Provider ID（可选）",
+    "type": "string",
+    "hint": "不填则使用当前会话正在使用的 Provider",
+    "default": ""
+  },
+  "solver_model": {
+    "description": "解题模型名（可选），留空使用提供商默认模型",
+    "type": "string",
+    "hint": "用于解题的模型标识（可选）",
+    "default": ""
+  },
+  "prefer_local_render": {
+    "description": "是否优先使用本地渲染（Playwright）",
+    "type": "bool",
+    "hint": "远端 t2i 不稳定时建议开启；需安装 playwright 与 Chromium",
+    "default": false
+  },
+  "local_device_scale": {
+    "description": "本地渲染的设备缩放倍率（提高清晰度）",
+    "type": "int",
+    "hint": "例如 2/3/4，越大图片越清晰但体积更大",
+    "default": 2
+  },
+  "offline_katex_assets": {
+    "description": "是否使用本地 KaTeX 资源（完全离线渲染公式）",
+    "type": "bool",
+    "hint": "开启后将从本地读取 KaTeX CSS/JS，请将官方发行包文件放到 assets/katex 目录",
+    "default": true
+  },
+  "katex_assets_dir": {
+    "description": "本地 KaTeX 资源目录（相对插件目录或绝对路径）",
+    "type": "string",
+    "hint": "需要包含 katex.min.css, katex.min.js, auto-render.min.js",
+    "default": "assets/katex"
+  },
+  "offline_marked_assets": {
+    "description": "是否使用本地 marked.js 资源（完全离线渲染 Markdown）",
+    "type": "bool",
+    "hint": "开启后将从本地读取 marked.min.js，请将文件放到 assets/ 目录",
+    "default": true
+  },
+  "marked_assets_path": {
+    "description": "本地 marked.js 资源路径（相对插件目录或绝对路径）",
+    "type": "string",
+    "hint": "需要包含 marked.min.js",
+    "default": "assets/marked.min.js"
+  }
+}
