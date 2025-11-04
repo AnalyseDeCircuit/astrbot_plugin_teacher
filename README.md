@@ -1,4 +1,4 @@
-# 前排提示：这个插件全是AI写的，包括readme
+# 前排提示：这个插件几乎全是AI写的，包括readme
 
 # AstrBot Teacher - 智能题目解析助手
 
@@ -111,6 +111,7 @@ astrbot_teacher/
 | `katex_assets_dir` | string | KaTeX 资源目录路径 | `assets/katex` |
 | `offline_marked_assets` | bool | 是否使用本地 marked.js | `true` |
 | `marked_assets_path` | string | marked.js 文件路径 | `assets/marked.min.js` |
+| `custom_font_dirs` | list | 自定义字体目录列表 | `""` |
 
 **推荐配置**：
 - `prefer_local_render`: `true`（更稳定）
@@ -133,10 +134,6 @@ playwright install --with-deps chromium
 **检查项**：
 1. 确认 `assets/katex/` 和 `assets/marked.min.js` 存在
 2. 配置中启用 `offline_katex_assets` 和 `offline_marked_assets`
-
-### DeepSeek API 错误
-
-如果遇到 JSON 解析错误，请将 `deepseek-reasoner` 模型切换为 `deepseek-chat`。
 
 ## 🧑‍💻 技术栈
 
