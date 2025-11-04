@@ -58,5 +58,13 @@
     "type": "string",
     "hint": "需要包含 marked.min.js",
     "default": "assets/marked.min.js"
+  },
+  "custom_font_dirs": {
+    "description": "自定义字体目录列表（绝对路径）",
+    "type": "list",
+    "hint": "Playwright 会从这些目录加载字体，用于解决系统字体不生效的问题。每个路径一行。",
+    "default": [
+      ""
+    ]
   }
 }
