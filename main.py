@@ -1,14 +1,3 @@
-"""astrbot_teacher - 智能题目解析助手插件
-
-功能：
-- 支持文字输入或图片输入（自动 OCR）
-- 使用当前配置的 LLM 提供商分别做 OCR（若有图片）和解题
-- 将解析结果渲染为图片并返回（支持公式渲染，使用 KaTeX）
-- 输出格式：纯 Markdown
-
-配置：可通过插件配置设置 ocr_model / solver_model（可选）。
-"""
-
 import asyncio
 import tempfile
 from pathlib import Path
@@ -29,7 +18,7 @@ TMPL = """
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         {{ KATEX_CSS | safe }}
         <style>
-            :root { --font: -apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial; }
+            :root { --font: 'Noto Sans', 'Noto Serif CJK SC',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial; }
             body { font-family: var(--font); background: #fff; color: #222; padding: 32px; font-size: 16px; line-height: 1.7;}
             .card { background: white; border-radius: 12px; padding: 32px; box-shadow: 0 10px 24px rgba(20,20,20,0.08); width: 1100px; margin: 0 auto; }
             .header { margin-bottom: 24px; }
@@ -52,6 +41,12 @@ TMPL = """
             .content pre code { background: none; padding: 0; }
             .content blockquote { border-left: 4px solid #ddd; padding-left: 16px; margin: 16px 0; color: #666; font-style: italic; }
             .content hr { border: none; border-top: 1px solid #e0e0e0; margin: 24px 0; }
+            .content table {border-collapse: collapse;margin: 16px 0;width: 100%;}
+            .content th, .content td {border: 1px solid #ddd;padding: 8px 12px;text-align: left;}
+            .content th {background: #f2f2f2;font-weight: 600;}
+            .content tr:nth-child(even) {background: #fafafa;}
+            .katex .mtable {border-collapse: separate !important;border-spacing: 0 0.5em !important;}
+
         </style>
         {{ KATEX_JS | safe }}
         {{ AUTORENDER_JS | safe }}
@@ -69,6 +64,7 @@ TMPL = """
                     
                     // marked.js 会自动转义代码块中的 HTML
                     const htmlResult = marked.parse(mdText);
+                    
                     contentEl.innerHTML = htmlResult;
                 }
                 
@@ -226,6 +222,33 @@ class TeacherPlugin(Star):
             browser = await p.chromium.launch()
             page = await browser.new_page(device_scale_factor=device_scale)
             await page.goto(f"file://{html_file.as_posix()}", wait_until="load")
+
+            # -- 注入自定义字体 --
+            custom_font_dirs = (self.config or {}).get("custom_font_dirs") or []
+            if custom_font_dirs:
+                font_faces = []
+                for font_dir_str in custom_font_dirs:
+                    font_dir = Path(font_dir_str)
+                    if not font_dir.is_dir():
+                        logger.warning(f"自定义字体目录不存在: {font_dir_str}")
+                        continue
+                    
+                    logger.info(f"正在从目录加载字体: {font_dir_str}")
+                    for font_file in font_dir.rglob('*'):
+                        if font_file.suffix.lower() in ['.ttf', '.otf', '.woff', '.woff2']:
+                            font_family_name = font_file.stem  # 使用文件名作为字体族名
+                            font_faces.append(f"""
+                                @font-face {{
+                                    font-family: '{font_family_name}';
+                                    src: url('file://{font_file.as_posix()}');
+                                }}
+                            """)
+                
+                if font_faces:
+                    style_content = "\n".join(font_faces)
+                    await page.add_style_tag(content=style_content)
+                    logger.info(f"成功注入 {len(font_faces)} 个自定义字体。")
+
             # 等待字体与渲染加载
             try:
                 await page.wait_for_function("() => document.fonts && document.fonts.status === 'loaded'", timeout=1500)
@@ -327,8 +350,34 @@ class TeacherPlugin(Star):
 [OCR_TEXT]
 (在这里输出提取到的文字与公式)
 注意：
-不要输出额外说明或前后缀。'''
+- **不得使用\(\)和\[\]包裹任何东西，请用别的方式替代**
+- 例如："这是 $ r $ 的半径"
+- 仅限简短表达，复杂公式应放入 `$$...$$`
+- 正确示例：
+  - "函数的值域为 $ g(x) \\in [a,b] $"
+  - "设 $ a = 1 $，$ b = 2 $"
+  - "在区间 $ x \\in (0, 1) $ 上"
+- **错误示例**（不会渲染）：
+  - "(g(x) \\in [a,b])" ← 缺少 $ 符号
+  - "$g(x) \\in [a,b]$" ← 紧贴文字，缺少空格
+  - "\( R \)"← 使用\( \) 语法导致最后渲染不成功
 
+积分、求和、分式、矩阵、对齐推导等复杂表达式使用块级公式：
+
+$$
+... 
+$$
+
+- 独占一行，上下各留空行
+- 块内可使用 `aligned`、`cases` 等环境进行多行排版
+- 禁止在块级公式中嵌套 `$...$`
+
+
+### 其他说明
+**不要输出额外说明或前后缀。**
+**输出中的 LaTeX 代码不做任何字符清理或转义，保持原样。**
+
+'''
                 try:
                     ocr_resp = await self._text_chat(
                         prov_ocr,
@@ -352,6 +401,7 @@ class TeacherPlugin(Star):
 
             combined_question = "\n".join([s for s in (base_q, ocr_text) if s]).strip()
             logger.debug(f"astrbot_teacher: extracted question length={len(combined_question)}")
+            logger.info(combined_question)
             if not combined_question:
                 yield event.plain_result(
                     "未检测到题目文本。请直接在 /g 后输入题目，例如：\n"
@@ -407,9 +457,19 @@ $$
 - 块内可使用 `aligned`、`cases` 等环境进行多行排版
 - 禁止在块级公式中嵌套 `$...$`
 
-### 行内公式
+为避免在 Markdown→HTML→KaTeX 管道中 \\ 被吞掉或转义，请严格使用以下约定：
 
-- 必须使用 `$...$` 包围，结束前开始后各留一个空格
+行间（display）公式 使用 $$ ... $$（独占一行，且上/下空行）。
+
+在需要换行处必须使用 \\newline（即反斜杠 + 单词 newline）
+
+不要使用 \\ 或单独 \ 来换行。（说明：模板端会对数学区块做额外保护，但请优先用 \\newline 以避免兼容问题。）
+
+复杂多行结构（cases、aligned 等）仍使用 LaTeX 环境，但换行位置请用 \\newline
+
+	
+### 行内公式
+- **不得使用\(\)和\[\]包裹任何东西，必须使用 `$...$` 包围**，结束前开始后各留一个空格
 - 例如："这是 $ r $ 的半径"
 - 仅限简短表达，复杂公式应放入 `$$...$$`
 - 正确示例：
@@ -419,12 +479,31 @@ $$
 - **错误示例**（不会渲染）：
   - "(g(x) \\in [a,b])" ← 缺少 $ 符号
   - "$g(x) \\in [a,b]$" ← 紧贴文字，缺少空格
+  - "\( R \)"← 使用\( \) 语法导致最后渲染不成功
+- 行内矩阵公式使用 \displaystyle 保证正常渲染；如：
+$\displaystyle
+A=\begin{bmatrix}2&1\\1&2\end{bmatrix}
+$
 
 ### 粗体与符号
 
 - 普通文字用 Markdown：`**文字**`
 - 数学符号在公式中使用 `\\mathbf{r}` 或 `\\boldsymbol{\\alpha}`
 - 不混用 Markdown 粗体与数学模式
+
+### 表格表达
+- 若输出包含结构化数据或对比信息，优先使用表格表达。
+- 所有表格使用标准 Markdown 表格语法（不输出 HTML）。
+- 表头、列对齐需符合 GitHub Flavored Markdown (GFM) 语法，例如：
+
+| 项目 | 数值 | 单位 |
+|------|------:|:----:|
+| 长度 | 10 | cm |
+| 宽度 | 5 | cm  |
+
+数字列右对齐，文字列左对齐。
+
+- 不在表格外额外加 代码块 标记（```）。
 
 ### 分数与一致性
 
@@ -437,12 +516,26 @@ $$
 
 $$
 \\begin{aligned}
-A &= B + C \\\\
+A &= B + C \\newline
 &= D
 \\end{aligned}
 $$
 
 避免每步单独一个 `$$...$$`。
+
+多步相关推导或分段方程可写为：
+
+$$
+\\begin{cases}
+A = B + C \\newline
+D = E - F
+\\end{cases}
+$$
+
+⚠️ 注意
+-**每行末尾使用 \\newline 来换行（例如：A = B + C \\newline D = E - F）。**
+- 避免使用 \\\\，部分 Markdown 渲染器会自动合并或转义它。
+- 不要在行尾直接写单反斜杠 `\` 或双反斜杠 `\\`，会导致行间不分行。
 
 ### 书写规范与函数格式
 
@@ -507,6 +600,10 @@ int main()
 
 - 所有推导逻辑必须可复核；涉及近似须注明范围与理由
 - 仅使用 KaTeX 支持的命令；不定义新宏、不写 HTML 标签
+- **在任何内容中都不得使用\(\)和\[\]包裹任何东西，必须使用 `$...$` 包围**，结束前开始后各留一个空格
+- 对于多行推导，每行末尾使用 \\newline 来换行（例如：A = B + C \\newline D = E - F）。避免使用 \\\\，部分 Markdown 渲染器会自动合并或转义它。
+- 矩阵输出时优先使用 \begin{bmatrix}...\end{bmatrix} 而不是 \begin{matrix}
+- 行内矩阵使用 \displaystyle 保证正常渲染；如：$ \displaystyle A=\begin{bmatrix} 2 & 1 \\ 1 & 2 \end{bmatrix} $
 
 ## 总结
 
